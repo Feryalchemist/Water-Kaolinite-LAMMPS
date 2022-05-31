@@ -1,0 +1,53 @@
+######################################
+# INITIALIZATION
+
+units           real
+boundary        p p p
+atom_style      full
+
+timestep        0.1
+neighbor        1 bin
+neigh_modify    delay 10 check yes
+
+######################################
+# DEFINE INTERATOMIC POTENTIAL
+
+bond_style      harmonic                # bond between atom interaction
+angle_style     harmonic                # angle between 3 atom interaction
+
+pair_style      lj/cut/coul/long 15.0   # Force Field of simulation
+kspace_style    pppm 1.0e-5              # accuracy of force field calc
+
+# ---------------------------
+read_data       Water_CsCl_1M.data
+group           Water type 1 2 3 4
+# ---------------------------
+
+######################################
+# DEFINE COMPUTE and THERMO
+
+thermo         1000
+thermo_style   custom step etotal temp vol press density
+
+######################################
+# DUMP
+
+compute        1 all property/local batom1 batom2 btype
+dump           BOND  all local 100 LMP_out/bond.dump index c_1[1] c_1[2] c_1[3]
+dump           DUMP1 all atom  100 LMP_out/dump.lammpstrj
+dump           DUMP2 all yaml  100 LMP_out/dump.yaml id type x y z vx vy vz ix iy iz
+dump_modify    DUMP2 time yes units yes thermo yes
+######################################
+# FIX SIMULATION PROCEDURE
+
+fix            S1 Water shake 1.0e-4 200 0 b 1 a 1
+velocity       all create 298.15 4928459 rot yes dist gaussian
+
+compute        ctWater Water temp
+compute_modify ctWater dynamic yes
+fix            NVTWater Water nvt temp 298.15 298.15 1.0
+fix_modify     NVTWater temp ctWater
+
+run            50000
+
+write_data     LMP_out/Water_CsCl_1M-opt.data
